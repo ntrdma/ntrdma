@@ -367,6 +367,9 @@ struct dma_async_tx_descriptor *
 ioat_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 			   dma_addr_t dma_src, size_t len, unsigned long flags);
 struct dma_async_tx_descriptor *
+ioat_dma_prep_imm_lock(struct dma_chan *c, dma_addr_t dma_dest,
+		       u64 val, unsigned long flags);
+struct dma_async_tx_descriptor *
 ioat_prep_interrupt_lock(struct dma_chan *c, unsigned long flags);
 struct dma_async_tx_descriptor *
 ioat_prep_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,

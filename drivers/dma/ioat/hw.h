@@ -93,6 +93,7 @@ struct ioat_dma_descriptor {
 			unsigned int hint:1;
 			unsigned int rsvd2:13;
 			#define IOAT_OP_COPY 0x00
+			#define IOAT_OP_BLOCKFILL 0x01
 			unsigned int op:8;
 		} ctl_f;
 	};

@@ -159,6 +159,41 @@ ioat_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 	return &desc->txd;
 }
 
+struct dma_async_tx_descriptor *
+ioat_dma_prep_imm_lock(struct dma_chan *c, dma_addr_t dma_dest,
+		       u64 val, unsigned long flags)
+{
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
+	struct ioat_dma_descriptor *hw;
+	struct ioat_ring_ent *desc;
+	size_t total_len = 8;
+	int num_descs, idx, i;
+
+	num_descs = 1;
+	if (ioat_check_space_lock(ioat_chan, num_descs) == 0)
+		idx = ioat_chan->head;
+	else
+		return NULL;
+	i = 0;
+
+	desc = ioat_get_ring_ent(ioat_chan, idx + i);
+	hw = desc->hw;
+
+	hw->size = total_len;
+	hw->ctl = 0;
+	hw->ctl_f.op = IOAT_OP_BLOCKFILL;
+	hw->src_addr = val;
+	hw->dst_addr = dma_dest;
+	desc->txd.flags = flags;
+	desc->len = total_len;
+	hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
+	hw->ctl_f.fence = !!(flags & DMA_PREP_FENCE);
+	hw->ctl_f.compl_write = 1;
+	dump_desc_dbg(ioat_chan, desc);
+	/* we leave the channel locked to ensure in order submission */
+
+	return &desc->txd;
+}
 
 static struct dma_async_tx_descriptor *
 __ioat_prep_xor_lock(struct dma_chan *c, enum sum_check_flags *result,

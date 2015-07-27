@@ -1086,6 +1086,9 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 
 	ioat_dma->cap = readl(ioat_dma->reg_base + IOAT_DMA_CAP_OFFSET);
 
+	if (ioat_dma->cap & IOAT_CAP_FILL_BLOCK)
+		dma->device_prep_dma_imm_data = ioat_dma_prep_imm_lock;
+
 	if (is_xeon_cb32(pdev) || is_bwd_noraid(pdev))
 		ioat_dma->cap &=
 			~(IOAT_CAP_XOR | IOAT_CAP_PQ | IOAT_CAP_RAID16SS);
