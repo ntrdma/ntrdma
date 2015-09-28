@@ -1,0 +1,15 @@
+menuconfig NTC
+	tristate "Non-Transparent Channel support"
+	help
+	  The Non-Transparent Channel is an abstraction of the basic
+	  functionality of a Non-Transparent Bridge (NTB) and DMA engine.  It
+	  provides functions to map memory so that it can be accessed by the
+	  peer, and functions to operate on the peer memory.  An abstraction is
+	  used, because the peer memory may be mapped by some mechanism other
+	  than DMA, and be accessed via something other than NTB.
+
+	  If unsure, say N.
+
+if NTC
+
+endif # NTC

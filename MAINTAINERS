@@ -7450,6 +7450,12 @@ W:	https://github.com/jonmason/ntb/wiki
 T:	git git://github.com/jonmason/ntb.git
 F:	drivers/ntb/hw/intel/
 
+NTC DRIVERS
+M:	Allen Hubbe <Allen.Hubbe@emc.com>
+S:	Supported
+F:	include/linux/ntc.h
+F:	drivers/ntc/
+
 NTFS FILESYSTEM
 M:	Anton Altaparmakov <anton@tuxera.com>
 L:	linux-ntfs-dev@lists.sourceforge.net
