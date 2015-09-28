@@ -35,4 +35,13 @@ config NTC_NTB_MSI
 
 	  If unsure, say N.
 
+config NTC_TCP
+	tristate "TCP kernel socket NTC"
+	help
+	  This is an NTC back end using a kernel TCP socket, and a simple
+	  protocol to read and write kernel-virtual mapped memory via socket
+	  operations.
+
+	  If unsure, say N.
+
 endif # NTC
