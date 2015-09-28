@@ -12,4 +12,14 @@ menuconfig NTC
 
 if NTC
 
+config NTC_NTB
+	tristate "Non-Transparent Bridge NTC"
+	help
+	  This is an NTC back end using a PCI-express Non-Transparent Bridge,
+	  and a general purpose DMA engine on the same PCI-express root port.
+
+	  FIXME: this driver is not implemented!
+
+	  If unsure, say N.
+
 endif # NTC
