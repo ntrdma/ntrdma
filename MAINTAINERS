@@ -7465,6 +7465,11 @@ S:	Supported
 F:	Documentation/filesystems/ntfs.txt
 F:	fs/ntfs/
 
+NTRDMA DRIVER
+M:	Allen Hubbe <Allen.Hubbe@emc.com>
+S:	Supported
+F:	drivers/infiniband/hw/ntrdma/
+
 NVIDIA (rivafb and nvidiafb) FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
 L:	linux-fbdev@vger.kernel.org

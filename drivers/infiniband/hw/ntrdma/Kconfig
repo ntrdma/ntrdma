@@ -1,0 +1,31 @@
+config NTRDMA
+	tristate "Non-transparent RDMA support"
+	depends on NTC && NETDEVICES && INET
+	---help---
+	  The NTRDMA driver is an RDMA driver for a Non-Transparent Channel,
+	  such as a PCI-express Non-Transparent Bridge.  The NTRDMA driver
+	  supports the basic functionality of the Infiniband verbs programming
+	  interface, and an Ethernet device.
+
+if NTRDMA
+
+config NTRDMA_VBELL_USE_SEQ
+	bool "Use virtual doorbell sequence numbers"
+	default y
+	---help---
+	  Use sequence numbers instead of flags to indicate virtual doorbell status.
+
+	  If unsure, select Y.
+
+config NTRDMA_RETRY_RECV
+	bool "Retry a failed send if missing a recv"
+	default y
+	---help---
+	  Instead of failing a queue pair processing a send, if missing a
+	  receive, retry the operation.  A recv may be soon to be posted.  This
+	  is a workaround for applications that do not properly implement flow
+	  control for posting work requests.
+
+	  If unsure, select Y.
+
+endif #ntrdma
