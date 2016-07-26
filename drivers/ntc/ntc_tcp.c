@@ -39,7 +39,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <net/net_namespace.h>
-
+#include <linux/tcp.h>
 #include <linux/ntc.h>
 
 #define DRIVER_NAME			"ntc_tcp"
@@ -525,6 +525,7 @@ static int ntc_tcp_server(void *ctx)
 	struct ntc_tcp_dev *dev = ctx;
 	struct socket *listen_sock, *sock;
 	int rc;
+  int flag = 1;
 
 	int reps = 3; /* TODO: delme */
 
@@ -535,7 +536,10 @@ static int ntc_tcp_server(void *ctx)
 			      SOCK_STREAM, IPPROTO_TCP, &listen_sock);
 	if (rc)
 		goto err_sock;
-
+  rc = kernel_setsockopt(listen_sock, IPPROTO_TCP, TCP_NODELAY, (void*)&flag, sizeof(int));
+  if (rc)
+          goto err_sock;
+ 
 	pr_info("server %pISpc bind\n", &dev->saddr);
 	rc = kernel_bind(listen_sock, &dev->saddr, sizeof(dev->saddr));
 	if (rc)
@@ -559,6 +563,11 @@ static int ntc_tcp_server(void *ctx)
 		}
 		if (rc)
 			goto err_bind;
+
+    rc = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void*)&flag, sizeof(int));
+		if (rc)
+            goto err_bind;
+
 
 		pr_info("server %pISpc process\n", &dev->saddr);
 		rc = ntc_tcp_process(dev, sock);
@@ -591,6 +600,7 @@ static int ntc_tcp_client(void *ctx)
 	struct ntc_tcp_dev *dev = ctx;
 	struct socket *sock;
 	int rc = 0;
+  int flag = 1; 
 
 	pr_info("client %pISpc\n", &dev->saddr);
 
@@ -599,11 +609,18 @@ static int ntc_tcp_client(void *ctx)
 		rc = sock_create_kern(&init_net, dev->saddr.sa_family,
 				      SOCK_STREAM, IPPROTO_TCP, &sock);
 		if (rc)
+            goto err_sock;
+
+
+    rc = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void*)&flag, sizeof(int));
+		if (rc)
 			goto err_sock;
 
 		pr_info("client %pISpc connect\n", &dev->saddr);
 		rc = kernel_connect(sock, &dev->saddr,
 				    sizeof(dev->saddr), 0);
+
+
 		while (rc == -ECONNREFUSED && !kthread_should_stop()) {
 			schedule_timeout_interruptible(NTC_TCP_CONNECT_DELAY);
 			rc = kernel_connect(sock, &dev->saddr,
