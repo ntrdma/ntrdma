@@ -645,7 +645,6 @@ enum dmaengine_alignment {
  *	The function takes a buffer of size buf_len. The callback function will
  *	be called after period_len bytes have been transferred.
  * @device_prep_interleaved_dma: Transfer expression in a generic way.
- * @device_prep_dma_imm: prepares a DMA of immediate data operation
  * @device_config: Pushes a new configuration to a channel, return 0 or an error
  *	code
  * @device_pause: Pauses any transfer happening on a channel. Returns
@@ -673,7 +672,6 @@ struct dma_device {
 	enum dmaengine_alignment xor_align;
 	enum dmaengine_alignment pq_align;
 	enum dmaengine_alignment fill_align;
-	u8 imm_max_size;
 	#define DMA_HAS_PQ_CONTINUE (1 << 15)
 
 	int dev_id;
@@ -729,9 +727,6 @@ struct dma_device {
 	struct dma_async_tx_descriptor *(*device_prep_interleaved_dma)(
 		struct dma_chan *chan, struct dma_interleaved_template *xt,
 		unsigned long flags);
-	struct dma_async_tx_descriptor *(*device_prep_dma_imm)(
-		struct dma_chan *chan, dma_addr_t dst, void *src,
-		size_t len, unsigned long flags);
 
 	int (*device_config)(struct dma_chan *chan,
 			     struct dma_slave_config *config);
