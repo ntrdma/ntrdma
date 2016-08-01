@@ -117,6 +117,11 @@ module_param_array_named(config, ntc_tcp_config,
 			 charp, &ntc_tcp_count, 0440);
 MODULE_PARM_DESC(config, "[s|c]:<ip>:<port>[,...]");
 
+static int ntc_tcp_nodelay = 1;
+
+module_param_named(nodelay, ntc_tcp_nodelay, int, 0440);
+MODULE_PARM_DESC(nodelay, "0|1");
+
 static void ntc_tcp_release(struct device *__dev)
 {
 	struct ntc_tcp_dev *dev = ntc_tcp_down_cast(ntc_of_dev(__dev));
@@ -538,10 +543,12 @@ static int ntc_tcp_server(void *ctx)
 	if (rc)
 		goto err_sock;
 
-	rc = kernel_setsockopt(listen_sock, IPPROTO_TCP, TCP_NODELAY,
-			       (char *)&flag, sizeof(flag));
-	if (rc)
-		goto err_sock;
+	if (ntc_tcp_nodelay) {
+		rc = kernel_setsockopt(listen_sock, IPPROTO_TCP, TCP_NODELAY,
+				       (char *)&flag, sizeof(flag));
+		if (rc)
+			goto err_sock;
+	}
 
 	pr_info("server %pISpc bind\n", &dev->saddr);
 	rc = kernel_bind(listen_sock, &dev->saddr, sizeof(dev->saddr));
@@ -567,10 +574,12 @@ static int ntc_tcp_server(void *ctx)
 		if (rc)
 			goto err_bind;
 
-		rc = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-				       (char *)&flag, sizeof(flag));
-		if (rc)
-			goto err_bind;
+		if (ntc_tcp_nodelay) {
+			rc = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+					       (char *)&flag, sizeof(flag));
+			if (rc)
+				goto err_bind;
+		}
 
 		pr_info("server %pISpc process\n", &dev->saddr);
 		rc = ntc_tcp_process(dev, sock);
@@ -614,10 +623,12 @@ static int ntc_tcp_client(void *ctx)
 		if (rc)
 			goto err_sock;
 
-		rc = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-				       (char *)&flag, sizeof(flag));
-		if (rc)
-			goto err_sock;
+		if (ntc_tcp_nodelay) {
+			rc = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+					       (char *)&flag, sizeof(flag));
+			if (rc)
+				goto err_sock;
+		}
 
 		pr_info("client %pISpc connect\n", &dev->saddr);
 		rc = kernel_connect(sock, &dev->saddr,
