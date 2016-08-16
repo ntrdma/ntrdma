@@ -41,6 +41,7 @@
 #include <linux/ntb.h>
 #include <linux/pci.h>
 #include <linux/timer.h>
+#include <linux/msi.h>
 
 #include <linux/ntc.h>
 
@@ -214,22 +215,42 @@ struct ntc_ntb_dev {
 static void ntc_ntb_read_msi_config(struct ntc_ntb_dev *dev,
 				    u64 *addr, u32 *val)
 {
-	u32 addr_lo, addr_hi, data;
+	u32 addr_lo, addr_hi = 0, data;
+	struct pci_dev *pdev = dev->ntb->pdev;
 
 	/* FIXME: add support for 64-bit MSI header, and MSI-X.  Until it is
 	 * fixed here, we need to disable MSI-X in the NTB HW driver.
 	 */
 
-	pci_read_config_dword(dev->ntb->pdev,
-			      PCI_MSI_ADDRESS_LO + dev->ntb->pdev->msi_cap,
-			      &addr_lo);
+	if (pdev->msi_enabled) {
+		pci_read_config_dword(pdev,
+				      PCI_MSI_ADDRESS_LO + pdev->msi_cap,
+				      &addr_lo);
 
-	/* FIXME: msi header layout differs for 32/64 bit addr width. */
-	addr_hi = 0;
+		/*
+		 * FIXME: msi header layout differs for 32/64
+		 * bit addr width.
+		 */
+		pci_read_config_dword(pdev,
+				      pdev->msi_cap + PCI_MSI_DATA_32,
+				      &data);
+	} else if (pdev->msix_enabled) {
+		struct msi_desc *entry;
 
-	pci_read_config_dword(dev->ntb->pdev,
-			      dev->ntb->pdev->msi_cap + PCI_MSI_DATA_32,
-			      &data);
+		list_for_each_entry(entry, &pdev->dev.msi_list, list) {
+			addr_hi = ioread32(entry->mask_base +
+					   PCI_MSIX_ENTRY_UPPER_ADDR);
+			addr_lo = ioread32(entry->mask_base +
+					   PCI_MSIX_ENTRY_LOWER_ADDR);
+			data = ioread32(entry->mask_base +
+					PCI_MSIX_ENTRY_DATA);
+			break;
+		}
+	} else {
+		*addr = 0;
+		*val = 0;
+		return;
+	}
 
 	*addr = (u64)addr_lo | (u64)addr_hi << 32;
 	*val = data;
