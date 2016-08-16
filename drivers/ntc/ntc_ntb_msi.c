@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#include <linux/debugfs.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -55,6 +56,8 @@ MODULE_LICENSE(DRIVER_LICENSE);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
+
+static struct dentry *ntc_dbgfs;
 
 static int ntc_ntb_info_size = 0x1000;
 /* TODO: module param named info_size */
@@ -186,6 +189,8 @@ struct ntc_ntb_dev {
 
 	struct ntc_ntb_hello_map	hello_odd;
 	struct ntc_ntb_hello_map	hello_even;
+
+	struct dentry *dbgfs;
 };
 
 #define ntc_ntb_down_cast(__ntc) \
@@ -1370,6 +1375,104 @@ static void ntc_ntb_release(struct device *device)
 	kfree(dev);
 }
 
+static int ntc_debugfs_read(struct seq_file *s, void *v)
+{
+	struct ntc_ntb_dev *dev = s->private;
+
+	seq_printf(s, "peer_dram_base %#llx\n",
+		   dev->peer_dram_base);
+	seq_printf(s, "info_peer_on_self_size %#zx\n",
+		   dev->info_peer_on_self_size);
+	seq_printf(s, "info_peer_on_self_dma %#llx\n",
+		   dev->info_peer_on_self_dma);
+	seq_puts(s, "info_peer_on_self:\n");
+	seq_printf(s, "  magic %#x\n",
+		   dev->info_peer_on_self->magic);
+	seq_printf(s, "  ping %#x\n",
+		   dev->info_peer_on_self->ping);
+	seq_puts(s, "  hello_odd:\n");
+	seq_printf(s, "    size %#x\n",
+		   dev->info_peer_on_self->hello_odd.size);
+	seq_printf(s, "    addr_upper %#x\n",
+		   dev->info_peer_on_self->hello_odd.addr_upper);
+	seq_printf(s, "    addr_lower %#x\n",
+		   dev->info_peer_on_self->hello_odd.addr_lower);
+	seq_puts(s, "  hello_even:\n");
+	seq_printf(s, "    size %#x\n",
+		   dev->info_peer_on_self->hello_even.size);
+	seq_printf(s, "    addr_upper %#x\n",
+		   dev->info_peer_on_self->hello_even.addr_upper);
+	seq_printf(s, "    addr_lower %#x\n",
+		   dev->info_peer_on_self->hello_even.addr_lower);
+	seq_printf(s, "  hello_size %#x\n",
+		   dev->info_peer_on_self->hello_even_size);
+	seq_printf(s, "  hello_addr_upper %#x\n",
+		   dev->info_peer_on_self->hello_even_addr_upper);
+	seq_printf(s, "  hello_addr_lower %#x\n",
+		   dev->info_peer_on_self->hello_even_addr_lower);
+	seq_printf(s, "  msi_data %#x\n",
+		   dev->info_peer_on_self->msi_data);
+	seq_printf(s, "  msi_addr_lower %#x\n",
+		   dev->info_peer_on_self->msi_addr_lower);
+	seq_printf(s, "  msi_addr_upper %#x\n",
+		   dev->info_peer_on_self->msi_addr_upper);
+	seq_printf(s, "version %d\n",
+		   dev->version);
+	seq_printf(s, "peer_msi_addr %#llx\n",
+		   dev->peer_msi_addr);
+	seq_printf(s, "peer_msi_data %#x\n",
+		   dev->peer_msi_data);
+	seq_printf(s, "ping_run %d\n",
+		   dev->ping_run);
+	seq_printf(s, "ping_miss %d\n",
+		   dev->ping_miss);
+	seq_printf(s, "ping_flags %#x\n",
+		   dev->ping_flags);
+	seq_printf(s, "ping_seq %#hx\n",
+		   dev->ping_seq);
+	seq_printf(s, "ping_msg %#hx\n",
+		   dev->ping_msg);
+	seq_printf(s, "poll_val %#x\n",
+		   dev->poll_val);
+	seq_printf(s, "poll_msg %#hx\n",
+		   dev->poll_msg);
+	seq_printf(s, "link_is_up %d\n",
+		   dev->link_is_up);
+	seq_printf(s, "link_state %d\n",
+		   dev->link_state);
+
+	return 0;
+}
+
+static int ntc_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ntc_debugfs_read, inode->i_private);
+}
+
+static const struct file_operations ntc_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = ntc_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void ntc_setup_debugfs(struct ntc_ntb_dev *dev)
+{
+	if (!ntc_dbgfs) {
+		dev->dbgfs = NULL;
+		return;
+	}
+
+	dev->dbgfs = debugfs_create_dir(dev_name(&dev->ntb->dev),
+					ntc_dbgfs);
+	if (!dev->dbgfs)
+		return;
+
+	debugfs_create_file("info", S_IRUSR, dev->dbgfs,
+			    dev, &ntc_debugfs_fops);
+}
+
 static int ntc_ntb_probe(struct ntb_client *self,
 			 struct ntb_dev *ntb)
 {
@@ -1412,6 +1515,8 @@ static int ntc_ntb_probe(struct ntb_client *self,
 
 	dev->ntc.dev.release = ntc_ntb_release;
 
+	ntc_setup_debugfs(dev);
+
 	return ntc_register_device(&dev->ntc);
 
 err_init:
@@ -1429,6 +1534,8 @@ static void ntc_ntb_remove(struct ntb_client *self, struct ntb_dev *ntb)
 
 	dev_vdbg(&dev->ntc.dev, "remove\n");
 
+	debugfs_remove_recursive(dev->dbgfs);
+
 	ntc_unregister_device(&dev->ntc);
 }
 
@@ -1443,6 +1550,8 @@ static int __init ntc_init(void)
 {
 	pr_info("%s: %s %s\n", DRIVER_NAME,
 		DRIVER_DESCRIPTION, DRIVER_VERSION);
+	if (debugfs_initialized())
+		ntc_dbgfs = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	ntb_register_client(&ntc_ntb_client);
 	return 0;
 }
@@ -1451,5 +1560,6 @@ module_init(ntc_init);
 static void __exit ntc_exit(void)
 {
 	ntb_unregister_client(&ntc_ntb_client);
+	debugfs_remove_recursive(ntc_dbgfs);
 }
 module_exit(ntc_exit);
