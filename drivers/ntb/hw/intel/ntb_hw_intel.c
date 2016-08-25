@@ -91,10 +91,6 @@ static const struct ntb_dev_ops intel_ntb_ops;
 static const struct file_operations intel_ntb_debugfs_info;
 static struct dentry *debugfs_dir;
 
-static int no_msix = 1;
-module_param(no_msix, int, 0644);
-MODULE_PARM_DESC(no_msix, "Do not enable msix interrupts.");
-
 static int b2b_mw_idx = -1;
 module_param(b2b_mw_idx, int, 0644);
 MODULE_PARM_DESC(b2b_mw_idx, "Use this mw idx to access the peer ntb.  A "
@@ -441,9 +437,6 @@ static int ndev_init_isr(struct intel_ntb_dev *ndev,
 			      ndev->self_reg->db_mask);
 
 	/* Try to set up msix irq */
-
-	if (no_msix)
-		goto err_msix_vec_alloc;
 
 	ndev->vec = kzalloc_node(msix_max * sizeof(*ndev->vec),
 				 GFP_KERNEL, node);
