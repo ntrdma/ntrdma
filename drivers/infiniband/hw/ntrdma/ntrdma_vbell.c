@@ -233,6 +233,9 @@ static void ntrdma_dev_vbell_work(struct ntrdma_dev *dev)
 		}
 	}
 	spin_unlock_bh(&dev->vbell_self_lock);
+
+	if (ntc_clear_signal(dev->ntc))
+		tasklet_schedule(&dev->vbell_work);
 }
 
 static void ntrdma_dev_vbell_work_cb(unsigned long ptrhld)

@@ -71,6 +71,7 @@ static inline int ntc_driver_ops_is_valid(const struct ntc_driver_ops *ops)
  * @quiesce:		See ntc_ctx_quiesce().
  * @reset:		See ntc_ctx_reset().
  * @signal:		See ntc_ctx_signal().
+ * @clear_signal:	See ntc_ctx_clear_signal().
  */
 struct ntc_ctx_ops {
 	ssize_t (*hello)(void *ctx, int phase,
@@ -110,6 +111,7 @@ static inline int ntc_ctx_ops_is_valid(const struct ntc_ctx_ops *ops)
  * @req_imm32:		See ntc_req_imm32().
  * @req_imm64:		See ntc_req_imm64().
  * @req_signal:		See ntc_req_signal().
+ * @clear_signal:	See ntc_clear_signal().
  */
 struct ntc_dev_ops {
 	struct device *(*map_dev)(struct ntc_dev *ntc);
@@ -135,6 +137,7 @@ struct ntc_dev_ops {
 			 void (*cb)(void *cb_ctx), void *cb_ctx);
 	int (*req_signal)(struct ntc_dev *ntc, void *req,
 			  void (*cb)(void *cb_ctx), void *cb_ctx);
+	int (*clear_signal)(struct ntc_dev *ntc);
 };
 
 static inline int ntc_dev_ops_is_valid(const struct ntc_dev_ops *ops)
@@ -156,6 +159,7 @@ static inline int ntc_dev_ops_is_valid(const struct ntc_dev_ops *ops)
 		ops->req_imm32				&&
 		ops->req_imm64				&&
 		ops->req_signal				&&
+		/* ops->clear_signal			&& */
 		1;
 }
 
@@ -945,4 +949,19 @@ static inline int ntc_umem_count(struct ntc_dev *ntc, void *umem)
 	return ntc->map_ops->umem_count(ntc, umem);
 }
 
+/**
+ * ntc_clear_signal() - clear the signal asserting event
+ * @ntc:	Device context.
+ *
+ * Clear the signal that's asserted for events (interrupts perhaps).
+ *
+ * Return: 1 for events waiting or 0 for no events.
+ */
+static inline int ntc_clear_signal(struct ntc_dev *ntc)
+{
+	if (!ntc->dev_ops->clear_signal)
+		return 0;
+
+	return ntc->dev_ops->clear_signal(ntc);
+}
 #endif

@@ -63,6 +63,10 @@ static struct dentry *ntc_dbgfs;
 static int ntc_ntb_info_size = 0x1000;
 /* TODO: module param named info_size */
 
+static bool use_msi;
+module_param(use_msi, bool, 0444);
+MODULE_PARM_DESC(use_msi, "Use MSI(X) as interrupts");
+
 /* Protocol version for backwards compatibility */
 #define NTC_NTB_VERSION_NONE		0
 #define NTC_NTB_VERSION_MAX		2
@@ -94,6 +98,8 @@ static int ntc_ntb_info_size = 0x1000;
 #define NTC_NTB_PING_PONG_PERIOD	msecs_to_jiffies(100)
 #define NTC_NTB_PING_POLL_PERIOD	msecs_to_jiffies(257)
 #define NTC_NTB_PING_MISS_THRESHOLD	10
+
+#define NTC_NTB_DB_BIT			1
 
 #ifndef iowrite64
 #ifdef writeq
@@ -610,14 +616,32 @@ err:
 
 static inline void ntc_ntb_ping_ready(struct ntc_ntb_dev *dev)
 {
+	int rc;
+	resource_size_t size;
+
+	if (use_msi) {
+		dev->peer_irq_data = dev->info_peer_on_self->msi_data;
+		dev->peer_irq_addr = dev->peer_dram_base +
+			(((u64)dev->info_peer_on_self->msi_addr_lower) |
+			 (((u64)dev->info_peer_on_self->msi_addr_upper) << 32));
+	} else {
+		dev->peer_irq_data = NTC_NTB_DB_BIT;
+		rc = ntb_peer_db_addr(dev->ntb,
+				      (phys_addr_t *)&dev->peer_irq_addr,
+				      &size);
+		if ((rc < 0) || (size != sizeof(u32))) {
+			dev_err(&dev->ntc.dev, "Peer DB addr invalid\n");
+			return;
+		}
+
+		dev_dbg(&dev->ntc.dev, "Peer DB addr: %#llx\n",
+			dev->peer_irq_addr);
+
+		ntb_db_clear(dev->ntb, NTC_NTB_DB_BIT);
+		ntb_db_clear_mask(dev->ntb, NTC_NTB_DB_BIT);
+	}
+
 	dev_dbg(&dev->ntc.dev, "link ping ready\n");
-
-	dev->peer_irq_data = dev->info_peer_on_self->msi_data;
-
-	dev->peer_irq_addr = dev->peer_dram_base +
-		(((u64)dev->info_peer_on_self->msi_addr_lower) |
-		 (((u64)dev->info_peer_on_self->msi_addr_upper) << 32));
-
 	ntc_ntb_link_set_state(dev, NTC_NTB_LINK_PING_READY);
 }
 
@@ -1194,6 +1218,22 @@ static int ntc_ntb_req_signal(struct ntc_dev *ntc, void *req,
 				 false, cb, cb_ctx);
 }
 
+static int ntc_ntb_clear_signal(struct ntc_dev *ntc)
+{
+	struct ntc_ntb_dev *dev = ntc_ntb_down_cast(ntc);
+
+	if (use_msi)
+		return 0;
+
+	if (ntb_db_read(dev->ntb) & dev->peer_irq_data) {
+		ntb_db_clear(dev->ntb, dev->peer_irq_data);
+		ntb_db_read(dev->ntb);
+		return 1;
+	}
+
+	return 0;
+}
+
 static struct ntc_dev_ops ntc_ntb_dev_ops = {
 	.map_dev			= ntc_ntb_map_dev,
 	.link_disable			= ntc_ntb_link_disable,
@@ -1207,6 +1247,7 @@ static struct ntc_dev_ops ntc_ntb_dev_ops = {
 	.req_imm32			= ntc_ntb_req_imm32,
 	.req_imm64			= ntc_ntb_req_imm64,
 	.req_signal			= ntc_ntb_req_signal,
+	.clear_signal			= ntc_ntb_clear_signal,
 };
 
 static void ntc_ntb_link_event(void *ctx)
