@@ -167,8 +167,8 @@ struct ntc_ntb_dev {
 	int				version;
 
 	/* direct interrupt message */
-	u64				peer_msi_addr;
-	u32				peer_msi_data;
+	u64				peer_irq_addr;
+	u32				peer_irq_data;
 
 	/* link state heartbeat */
 	bool				ping_run;
@@ -612,9 +612,9 @@ static inline void ntc_ntb_ping_ready(struct ntc_ntb_dev *dev)
 {
 	dev_dbg(&dev->ntc.dev, "link ping ready\n");
 
-	dev->peer_msi_data = dev->info_peer_on_self->msi_data;
+	dev->peer_irq_data = dev->info_peer_on_self->msi_data;
 
-	dev->peer_msi_addr = dev->peer_dram_base +
+	dev->peer_irq_addr = dev->peer_dram_base +
 		(((u64)dev->info_peer_on_self->msi_addr_lower) |
 		 (((u64)dev->info_peer_on_self->msi_addr_upper) << 32));
 
@@ -1189,8 +1189,8 @@ static int ntc_ntb_req_signal(struct ntc_dev *ntc, void *req,
 	dev_vdbg(&ntc->dev, "request signal to peer\n");
 
 	return ntc_ntb_req_imm32(ntc, req,
-				 dev->peer_msi_addr,
-				 dev->peer_msi_data,
+				 dev->peer_irq_addr,
+				 dev->peer_irq_data,
 				 false, cb, cb_ctx);
 }
 
@@ -1294,8 +1294,8 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	dev->version = 0;
 
 	/* haven't negotiated the msi pair */
-	dev->peer_msi_addr = 0;
-	dev->peer_msi_data = 0;
+	dev->peer_irq_addr = 0;
+	dev->peer_irq_data = 0;
 
 	/* init the link state heartbeat */
 	dev->ping_run = false;
@@ -1439,10 +1439,10 @@ static int ntc_debugfs_read(struct seq_file *s, void *v)
 		   dev->info_peer_on_self->msi_addr_upper);
 	seq_printf(s, "version %d\n",
 		   dev->version);
-	seq_printf(s, "peer_msi_addr %#llx\n",
-		   dev->peer_msi_addr);
-	seq_printf(s, "peer_msi_data %#x\n",
-		   dev->peer_msi_data);
+	seq_printf(s, "peer_irq_addr %#llx\n",
+		   dev->peer_irq_addr);
+	seq_printf(s, "peer_irq_data %#x\n",
+		   dev->peer_irq_data);
 	seq_printf(s, "ping_run %d\n",
 		   dev->ping_run);
 	seq_printf(s, "ping_miss %d\n",
