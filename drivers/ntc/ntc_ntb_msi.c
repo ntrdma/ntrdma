@@ -1291,6 +1291,8 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	/* we'll be using the last memory window if it exists */
 	mw_idx = ntb_mw_count(dev->ntb);
 	if (mw_idx <= 0) {
+		pr_devel("no mw for new device %s\n",
+			 dev_name(&dev->ntb->dev));
 		rc = -EINVAL;
 		goto err_mw;
 	}
@@ -1303,16 +1305,24 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	/* this is the window we'll translate to local dram */
 	ntb_mw_get_range(dev->ntb, mw_idx, &mw_base, &mw_size, NULL, NULL);
 
-	/* FIXME: ensure window is large enough */
-	if (mw_size < 1) {
+	/*
+	 * FIXME: ensure window is large enough.
+	 * Fail under 8G here, but mw should be >= dram.
+	 */
+	if (mw_size < 0x200000000ul) {
+		pr_devel("invalid mw size for new device %s\n",
+			 dev_name(&dev->ntb->dev));
 		rc = -EINVAL;
 		goto err_mw;
 	}
 
 	/* FIXME: zero is not a portable address for local dram */
 	rc = ntb_mw_set_trans(dev->ntb, mw_idx, 0, mw_size);
-	if (rc)
+	if (rc) {
+		pr_devel("failed to translate mw for new device %s\n",
+			 dev_name(&dev->ntb->dev));
 		goto err_mw;
+	}
 
 	dev->peer_dram_base = mw_base;
 
@@ -1324,6 +1334,8 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 				   &dev->info_peer_on_self_dma,
 				   GFP_KERNEL);
 	if (!dev->info_peer_on_self) {
+		pr_devel("failed to allocate peer info for new device %s\n",
+			 dev_name(&dev->ntb->dev));
 		rc = -ENOMEM;
 		goto err_info;
 	}
@@ -1369,8 +1381,11 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	/* ready for context events */
 	rc = ntb_set_ctx(dev->ntb, dev,
 			 &ntc_ntb_ctx_ops);
-	if (rc)
+	if (rc) {
+		pr_devel("failed to allocate peer info for new device %s\n",
+			 dev_name(&dev->ntb->dev));
 		goto err_ctx;
+	}
 
 	return 0;
 
@@ -1558,11 +1573,11 @@ static int ntc_ntb_probe(struct ntb_client *self,
 	dma = dma_request_channel(mask, ntc_ntb_filter_bus,
 				  ntc_ntb_ascend_bus(ntb->pdev->bus));
 	if (!dma) {
+		pr_devel("no dma for new device %s\n",
+			 dev_name(&ntb->dev));
 		rc = -ENODEV;
 		goto err_dma;
 	}
-
-	pr_devel("probe dma %s\n", dev_name(&dma->dev->device));
 
 	dev->dma = dma;
 
@@ -1572,8 +1587,6 @@ static int ntc_ntb_probe(struct ntb_client *self,
 	rc = ntc_ntb_dev_init(dev);
 	if (rc)
 		goto err_init;
-
-	pr_devel("initialized %s\n", dev_name(&dev->ntc.dev));
 
 	dev->ntc.dev.release = ntc_ntb_release;
 
