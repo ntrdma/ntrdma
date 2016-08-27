@@ -843,6 +843,7 @@ void ntrdma_rqp_del(struct ntrdma_rqp *rqp)
 	struct ntrdma_dev *dev = ntrdma_rqp_dev(rqp);
 
 	rqp->state = NTRDMA_QPS_RESET;
+	tasklet_disable(&rqp->send_work);
 	ntrdma_dev_vbell_del(dev, &rqp->send_vbell, rqp->send_vbell_idx);
 
 	ntrdma_rres_del(&rqp->rres);
