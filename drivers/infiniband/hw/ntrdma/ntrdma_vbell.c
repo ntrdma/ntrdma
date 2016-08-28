@@ -107,7 +107,7 @@ u32 ntrdma_dev_vbell_next(struct ntrdma_dev *dev)
 	{
 		idx = dev->vbell_next;
 
-		if (dev->vbell_count < ++dev->vbell_next)
+		if (dev->vbell_count <= ++dev->vbell_next)
 			dev->vbell_next = dev->vbell_start;
 	}
 	spin_unlock_bh(&dev->vbell_next_lock);
