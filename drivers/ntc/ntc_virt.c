@@ -113,9 +113,10 @@ static int ntc_virt_umem_sgl(struct ntc_dev *ntc, void *umem,
 		sgl[0].len -= virt_len;
 
 		if (virt_count <= count) {
-			/* virt_len is end offset in the last page */
+			/* virt_len is offset from the end of the last page */
 			virt_len = (virt_len + ibumem->length) & ~PAGE_MASK;
-			sgl[virt_count - 1].len -= PAGE_SIZE - virt_len;
+			virt_len = (PAGE_SIZE - virt_len) & ~PAGE_MASK;
+			sgl[virt_count - 1].len -= virt_len;
 		}
 	}
 
