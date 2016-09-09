@@ -130,9 +130,10 @@ static int ntc_phys_umem_sgl(struct ntc_dev *ntc, void *umem,
 		sgl[0].len -= dma_len;
 
 		if (dma_count <= count) {
-			/* dma_len is end offset in the last page */
+			/* dma_len is offset from the end of the last page */
 			dma_len = (dma_len + ibumem->length) & ~PAGE_MASK;
-			sgl[dma_count - 1].len -= PAGE_SIZE - dma_len;
+			dma_len = (PAGE_SIZE - dma_len) & ~PAGE_MASK;
+			sgl[dma_count - 1].len -= dma_len;
 		}
 	}
 
