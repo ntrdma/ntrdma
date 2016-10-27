@@ -89,13 +89,14 @@ void ntrdma_cq_del(struct ntrdma_cq *cq)
 {
 	struct ntrdma_dev *dev = ntrdma_cq_dev(cq);
 
-	tasklet_disable(&cq->cue_work);
 	spin_lock_bh(&cq->arm_lock);
 	{
 		cq->arm = 0;
 		ntrdma_dev_vbell_del(dev, &cq->vbell, cq->vbell_idx);
 	}
 	spin_unlock_bh(&cq->arm_lock);
+
+	tasklet_kill(&cq->cue_work);
 
 	mutex_lock(&dev->res_lock);
 	{
