@@ -1422,22 +1422,12 @@ static void ntc_ntb_dev_deinit(struct ntc_ntb_dev *dev)
 			  dev->info_peer_on_self_dma);
 }
 
-static inline struct pci_bus *ntc_ntb_ascend_bus(struct pci_bus *bus)
-{
-	while (bus->parent)
-		bus = bus->parent;
-
-	return bus;
-}
-
 static bool ntc_ntb_filter_bus(struct dma_chan *chan,
 			       void *filter_param)
 {
-	struct pci_dev *pdev;
+	int node = *(int *)filter_param;
 
-	pdev = to_pci_dev(chan->dev->device.parent);
-
-	return ntc_ntb_ascend_bus(pdev->bus) == filter_param;
+	return node == dev_to_node(&chan->dev->device);
 }
 
 static void ntc_ntb_release(struct device *device)
@@ -1556,7 +1546,7 @@ static int ntc_ntb_probe(struct ntb_client *self,
 	struct ntc_ntb_dev *dev;
 	struct dma_chan *dma;
 	dma_cap_mask_t mask;
-	int rc;
+	int node, rc;
 
 	pr_devel("probe ntb %s\n", dev_name(&ntb->dev));
 
@@ -1570,8 +1560,8 @@ static int ntc_ntb_probe(struct ntb_client *self,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_MEMCPY, mask);
 
-	dma = dma_request_channel(mask, ntc_ntb_filter_bus,
-				  ntc_ntb_ascend_bus(ntb->pdev->bus));
+	node = dev_to_node(&ntb->dev);
+	dma = dma_request_channel(mask, ntc_ntb_filter_bus, &node);
 	if (!dma) {
 		pr_devel("no dma for new device %s\n",
 			 dev_name(&ntb->dev));
